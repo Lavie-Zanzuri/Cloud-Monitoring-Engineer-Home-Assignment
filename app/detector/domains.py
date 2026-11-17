@@ -127,7 +127,9 @@ def brand_lookalike(host: str) -> tuple[str, str] | None:
         # Brand appears as a whole word somewhere in a foreign domain.
         if len(brand) >= 4 and re.search(rf"(^|[.\-]){re.escape(brand)}([.\-]|$)",
                                          normalized_host):
-            return brand, f"'{host}' contains '{brand}' but is not an official {brand} domain"
+            how = "" if normalized_host == host.lower() else " (written with look-alike characters)"
+            return brand, (f"'{host}' contains '{brand}'{how} "
+                           f"but is not an official {brand} domain")
     return None
 
 
