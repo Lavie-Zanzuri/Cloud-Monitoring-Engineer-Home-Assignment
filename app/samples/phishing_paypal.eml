@@ -1,0 +1,27 @@
+Return-Path: <bounce@mailer-x9.ru>
+Authentication-Results: mx.google.com; spf=fail smtp.mailfrom=mailer-x9.ru; dkim=none; dmarc=fail header.from=paypa1-security.com
+From: "PayPal Support" <service@paypa1-security.com>
+Reply-To: collect@evil-domain.ru
+To: lavie@gmail.com
+Subject: URGENT: Your account will be suspended
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="xyz"
+
+--xyz
+Content-Type: text/html; charset="utf-8"
+
+<html><body>
+<p>Dear Customer,</p>
+<p>We detected unusual activity. Your account will be <b>suspended within 24 hours</b>
+unless you verify your identity immediately.</p>
+<p><a href="http://185.23.44.10/login">https://www.paypal.com/login</a></p>
+<p>Or use this link: <a href="https://bit.ly/3xYzAbC">Verify now</a></p>
+<p>PayPal Security Team</p>
+</body></html>
+--xyz
+Content-Type: application/octet-stream; name="invoice.pdf.exe"
+Content-Disposition: attachment; filename="invoice.pdf.exe"
+Content-Transfer-Encoding: base64
+
+TVqQAAMAAAAEAAAA//8AALgAAAAAAAAAQAAAAAAAAAA=
+--xyz--

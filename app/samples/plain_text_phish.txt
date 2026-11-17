@@ -1,0 +1,8 @@
+Hello,
+
+Your Microsoft 365 password expires today. To keep your mailbox active you must
+confirm your credentials within 2 hours or your account will be permanently deleted.
+
+Click here to keep your password: http://microsoft-365-verify.xyz/auth?user=you
+
+IT Helpdesk
