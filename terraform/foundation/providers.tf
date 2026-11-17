@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.10"   # needed for S3 native state locking (use_lockfile)
+  required_version = ">= 1.10" # needed for S3 native state locking (use_lockfile)
 
   required_providers {
     aws = {
@@ -15,7 +15,7 @@ terraform {
     key          = "foundation/terraform.tfstate"
     region       = "eu-north-1"
     encrypt      = true
-    use_lockfile = true   # a lock file in S3 stops two applies running at once
+    use_lockfile = true # a lock file in S3 stops two applies running at once
   }
 }
 

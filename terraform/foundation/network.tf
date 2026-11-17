@@ -17,8 +17,8 @@ locals {
 
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
-  enable_dns_support   = true   # instances can resolve names (RDS endpoint, AWS APIs)
-  enable_dns_hostnames = true   # required for RDS and for SSM to work in private subnets
+  enable_dns_support   = true # instances can resolve names (RDS endpoint, AWS APIs)
+  enable_dns_hostnames = true # required for RDS and for SSM to work in private subnets
 
   tags = { Name = "${var.project}-vpc" }
 }

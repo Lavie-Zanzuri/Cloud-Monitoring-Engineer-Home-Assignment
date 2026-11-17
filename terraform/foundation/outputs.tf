@@ -28,3 +28,38 @@ output "private_app_route_table_id" {
   description = "The app stack adds the NAT route to this table."
   value       = aws_route_table.private_app.id
 }
+
+# ---------- security groups ----------
+
+output "alb_security_group_id" {
+  value = aws_security_group.alb.id
+}
+
+output "app_security_group_id" {
+  value = aws_security_group.app.id
+}
+
+# ---------- database ----------
+
+output "db_address" {
+  description = "Hostname the app connects to (never an IP - it can change on failover)."
+  value       = aws_db_instance.main.address
+}
+
+output "db_port" {
+  value = aws_db_instance.main.port
+}
+
+output "db_name" {
+  value = aws_db_instance.main.db_name
+}
+
+output "db_master_secret_arn" {
+  description = "Secrets Manager secret holding the DB username and password (created by RDS)."
+  value       = aws_db_instance.main.master_user_secret[0].secret_arn
+}
+
+output "db_instance_id" {
+  description = "Used to stop/start the DB between work sessions."
+  value       = aws_db_instance.main.identifier
+}

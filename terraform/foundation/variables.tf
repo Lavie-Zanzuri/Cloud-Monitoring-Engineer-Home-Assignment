@@ -21,3 +21,15 @@ variable "az_count" {
   type        = number
   default     = 2
 }
+
+variable "db_instance_class" {
+  description = "RDS size. db.t4g.micro = 2 vCPU (Graviton), 1 GB RAM - the cheapest option."
+  type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "db_engine_version" {
+  description = "PostgreSQL major version. RDS picks the latest minor version."
+  type        = string
+  default     = "16"
+}
