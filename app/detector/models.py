@@ -34,3 +34,12 @@ class ParsedEmail:
     # e.g. {"spf": "fail", "dkim": "none", "dmarc": "fail"}
     auth_results: dict[str, str] = field(default_factory=dict)
     has_headers: bool = False   # False when the input was just pasted body text
+
+
+@dataclass
+class Finding:
+    """One suspicious thing a check found. The scorer adds up `points`."""
+    category: str   # "sender" | "links" | "wording" | "attachments" | "authentication"
+    title: str      # short label, e.g. "Dangerous attachment type"
+    detail: str     # the evidence, e.g. "invoice.pdf.exe is an executable (.exe)"
+    points: int     # how much this finding adds to the risk score
