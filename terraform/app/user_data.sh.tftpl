@@ -1,0 +1,91 @@
+#!/bin/bash
+# ------------------------------------------------------------------------------
+# Runs once, as root, when an instance first boots. Installs the app and starts
+# it as a systemd service. Full output: /var/log/user-data.log
+# Terraform fills in the lowercase placeholders before the script reaches the instance.
+# ------------------------------------------------------------------------------
+set -euxo pipefail
+exec > >(tee /var/log/user-data.log) 2>&1
+
+# 1. Packages (via the NAT Gateway, HTTPS only)
+dnf install -y python3.11 python3.11-pip unzip
+
+# 2. A dedicated user with no shell - the app never runs as root
+useradd --system --home-dir /opt/phishing --shell /sbin/nologin phishing || true
+mkdir -p /opt/phishing /var/log/phishing
+
+# 3. App package from S3 (via the free S3 gateway endpoint)
+aws s3 cp "s3://${bucket}/${object_key}" /tmp/app.zip --region "${region}"
+rm -rf /opt/phishing/app
+unzip -q /tmp/app.zip -d /opt/phishing/app
+python3.11 -m venv /opt/phishing/venv
+/opt/phishing/venv/bin/pip install --quiet --upgrade pip
+/opt/phishing/venv/bin/pip install --quiet -r /opt/phishing/app/requirements.txt
+
+# 4. Non-secret settings. The DB password is NOT written to disk.
+cat > /opt/phishing/app.env <<CONF
+AWS_DEFAULT_REGION=${region}
+DB_SECRET_ARN=${db_secret_arn}
+DB_HOST=${db_host}
+DB_PORT=${db_port}
+DB_NAME=${db_name}
+CONF
+
+# 5. Start script: fetches the password from Secrets Manager at every (re)start,
+#    so a rotated password is picked up by restarting the service.
+cat > /opt/phishing/start.sh <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+set -a; source /opt/phishing/app.env; set +a
+
+TOKEN=$(curl -sf -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+INSTANCE_ID=$(curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+export INSTANCE_ID
+
+SECRET=$(aws secretsmanager get-secret-value --secret-id "$DB_SECRET_ARN" --query SecretString --output text)
+DATABASE_URL=$(echo "$SECRET" | /opt/phishing/venv/bin/python -c '
+import json, sys, urllib.parse as u
+s = json.load(sys.stdin)
+user = u.quote_plus(s["username"])
+password = u.quote_plus(s["password"])
+host, port, name = sys.argv[1:4]
+print(f"postgresql+psycopg://{user}:{password}@{host}:{port}/{name}?sslmode=require")
+' "$DB_HOST" "$DB_PORT" "$DB_NAME")
+export DATABASE_URL
+
+cd /opt/phishing/app
+exec /opt/phishing/venv/bin/uvicorn web.main:app --host 0.0.0.0 --port 8000 --workers 2 \
+  --proxy-headers --forwarded-allow-ips '*'
+SCRIPT
+
+chmod 750 /opt/phishing/start.sh
+chmod 640 /opt/phishing/app.env
+chown -R phishing:phishing /opt/phishing /var/log/phishing
+
+# 6. systemd service: starts on boot, restarts if the process dies
+cat > /etc/systemd/system/phishing.service <<'UNIT'
+[Unit]
+Description=Phishing detector web app
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=phishing
+Group=phishing
+ExecStart=/opt/phishing/start.sh
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/phishing/app.log
+StandardError=append:/var/log/phishing/app.log
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now phishing.service
+echo "user-data finished"
