@@ -37,3 +37,8 @@ output "app_log_group" {
 output "alerts_topic_arn" {
   value = aws_sns_topic.alerts.arn
 }
+
+output "cache_endpoint" {
+  description = "ElastiCache (Valkey) primary endpoint - reachable only from the app instances."
+  value       = aws_elasticache_replication_group.cache.primary_endpoint_address
+}

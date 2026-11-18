@@ -19,6 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .config import HISTORY_PAGE_SIZE, INSTANCE_ID, MAX_EMAIL_BYTES
+from .cache import cache_status
 from .db import db_is_reachable, get_session, init_db
 from .logging_config import setup_logging
 from .service import recent_scans, scan_email
@@ -77,10 +78,14 @@ def health():
 @app.get("/health/ready", tags=["health"])
 def ready():
     """Readiness for monitoring: can this instance do real work (DB included)?"""
+    # The cache is reported but never makes the instance "not ready": without it
+    # the app is slower on repeats, not broken.
+    cache = cache_status()
     if db_is_reachable():
-        return {"status": "ready", "database": "ok", "instance": INSTANCE_ID}
+        return {"status": "ready", "database": "ok", "cache": cache, "instance": INSTANCE_ID}
     return JSONResponse(status_code=503,
-                        content={"status": "degraded", "database": "unreachable", "instance": INSTANCE_ID})
+                        content={"status": "degraded", "database": "unreachable", "cache": cache,
+                                 "instance": INSTANCE_ID})
 
 
 # ---------- API ----------
@@ -97,7 +102,8 @@ def _run_scan(session: Session, raw: str) -> dict:
         log.exception("scan could not be saved")
         raise HTTPException(503, "Scan history is temporarily unavailable, please retry.")
     log.info("scan", extra={"fields": {"verdict": result["verdict"], "score": result["score"],
-                                       "indicators": len(result["findings"])}})
+                                       "indicators": len(result["findings"]),
+                                       "cache": "hit" if result.get("cached") else "miss"}})
     return result
 
 

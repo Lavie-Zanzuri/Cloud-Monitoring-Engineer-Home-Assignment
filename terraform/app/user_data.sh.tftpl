@@ -29,6 +29,7 @@ DB_SECRET_ARN=${db_secret_arn}
 DB_HOST=${db_host}
 DB_PORT=${db_port}
 DB_NAME=${db_name}
+CACHE_URL=rediss://${cache_host}:6379/0
 CONF
 
 # 5. Start script: fetches the password from Secrets Manager at every (re)start,

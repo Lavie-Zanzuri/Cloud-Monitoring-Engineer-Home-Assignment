@@ -8,11 +8,12 @@ from datetime import datetime, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from detector.analyzer import analyze
+from detector.analyzer import AnalysisResult, analyze
 from detector.domains import domain_of, registered_domain
 from detector.models import Finding
 from detector.scorer import score_findings
 
+from . import cache
 from .config import INSTANCE_ID
 from .db import Scan
 
@@ -45,7 +46,18 @@ def _history_findings(session: Session, sender_domain: str) -> list[Finding]:
 
 
 def scan_email(session: Session, raw: str) -> dict:
-    result = analyze(raw)
+    content_sha256 = hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()
+
+    # Same email scanned before (e.g. one campaign sent to many people)? Reuse the analysis.
+    key = cache.analysis_key(content_sha256)
+    cached = cache.get_json(key)
+    if cached is not None:
+        result = AnalysisResult.from_dict(cached)
+    else:
+        result = analyze(raw)
+        cache.set_json(key, result.to_dict())
+
+    # History is NOT cached: "sender previously flagged" must reflect the latest scans.
     sender_domain = registered_domain(domain_of(result.from_address))
 
     extra = _history_findings(session, sender_domain)
@@ -62,7 +74,7 @@ def scan_email(session: Session, raw: str) -> dict:
         verdict=result.verdict,
         score=result.score,
         findings=[f.__dict__ for f in result.findings],
-        content_sha256=hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest(),
+        content_sha256=content_sha256,
         served_by=INSTANCE_ID,
     )
     session.add(row)
@@ -71,6 +83,7 @@ def scan_email(session: Session, raw: str) -> dict:
     data = result.to_dict()
     data["scan_id"] = row.id
     data["created_at"] = _iso_utc(row.created_at)
+    data["cached"] = cached is not None
     return data
 
 

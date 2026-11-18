@@ -26,6 +26,11 @@ class AnalysisResult:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "AnalysisResult":
+        """Rebuild a result from to_dict() output (used when it comes back from the cache)."""
+        return cls(**{**data, "findings": [Finding(**f) for f in data.get("findings", [])]})
+
 
 def analyze(raw_email: str) -> AnalysisResult:
     email = parse_email(raw_email)

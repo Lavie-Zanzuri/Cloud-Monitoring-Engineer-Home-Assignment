@@ -18,6 +18,7 @@ locals {
   tg_dim  = aws_lb_target_group.app.arn_suffix  # "targetgroup/phishing-detector-tg/def456"
   asg     = aws_autoscaling_group.app.name
   db_id   = local.f.db_instance_id
+  cache_node = tolist(aws_elasticache_replication_group.cache.member_clusters)[0]   # "...-cache-001"
   metrics = "PhishingDetector"                  # namespace for metrics derived from app logs
 
   app_log_group       = "/${var.project}/app"
@@ -483,6 +484,37 @@ resource "aws_cloudwatch_dashboard" "main" {
           region = var.region
           view   = "table"
           query  = "SOURCE '${local.app_log_group}' | fields @timestamp, instance, level, message, path, status, error | filter level = 'ERROR' or status >= 500 | sort @timestamp desc | limit 50"
+        }
+      },
+
+      # --- Row 7: cache (ElastiCache / Valkey)
+      {
+        type = "metric", x = 0, y = 40, width = 12, height = 6
+        properties = {
+          title  = "Cache: hits vs misses, hit rate %"
+          region = var.region
+          period = 60
+          metrics = [
+            ["AWS/ElastiCache", "CacheHits", "CacheClusterId", local.cache_node, { id = "h", stat = "Sum", color = "#2ca02c" }],
+            ["AWS/ElastiCache", "CacheMisses", "CacheClusterId", local.cache_node, { id = "m", stat = "Sum", color = "#ff7f0e" }],
+            [{ expression = "100 * h / (h + m)", label = "Hit rate %", id = "e1", yAxis = "right" }],
+          ]
+          yAxis = { left = { min = 0 }, right = { min = 0, max = 100 } }
+        }
+      },
+      {
+        type = "metric", x = 12, y = 40, width = 12, height = 6
+        properties = {
+          title  = "Cache: CPU, memory, connections"
+          region = var.region
+          stat   = "Average"
+          period = 60
+          metrics = [
+            ["AWS/ElastiCache", "EngineCPUUtilization", "CacheClusterId", local.cache_node, { label = "Engine CPU %" }],
+            ["AWS/ElastiCache", "DatabaseMemoryUsagePercentage", "CacheClusterId", local.cache_node, { label = "Memory %" }],
+            ["AWS/ElastiCache", "CurrConnections", "CacheClusterId", local.cache_node, { label = "Connections", yAxis = "right" }],
+          ]
+          yAxis = { left = { min = 0, max = 100 }, right = { min = 0 } }
         }
       },
     ]

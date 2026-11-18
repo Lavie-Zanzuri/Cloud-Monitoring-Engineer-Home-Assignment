@@ -14,3 +14,8 @@ INSTANCE_ID = os.getenv("INSTANCE_ID") or socket.gethostname()
 
 MAX_EMAIL_BYTES = int(os.getenv("MAX_EMAIL_BYTES", str(1_000_000)))   # 1 MB
 HISTORY_PAGE_SIZE = 20
+
+# Optional cache (ElastiCache / Valkey). Empty = no cache; everything still works.
+# On AWS: rediss://<primary-endpoint>:6379/0  (rediss = TLS)
+CACHE_URL = os.getenv("CACHE_URL", "")
+CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "3600"))

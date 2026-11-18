@@ -42,6 +42,7 @@ resource "aws_launch_template" "app" {
     db_name       = local.f.db_name
     app_log_group       = aws_cloudwatch_log_group.app.name
     user_data_log_group = aws_cloudwatch_log_group.user_data.name
+    cache_host          = aws_elasticache_replication_group.cache.primary_endpoint_address
   }))
 
   # 1-minute EC2 metrics instead of 5-minute: matches the ALB's granularity and lets
