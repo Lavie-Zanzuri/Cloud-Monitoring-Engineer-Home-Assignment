@@ -30,3 +30,14 @@ variable "asg_max" {
   type        = number
   default     = 4
 }
+
+variable "alert_email" {
+  description = "Where alarm emails go. Set it in terraform.tfvars (git-ignored) - see example.tfvars. Empty = no email subscription."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.alert_email == "" || can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
+    error_message = "alert_email must be an email address or empty."
+  }
+}

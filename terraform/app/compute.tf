@@ -40,7 +40,15 @@ resource "aws_launch_template" "app" {
     db_host       = local.f.db_address
     db_port       = local.f.db_port
     db_name       = local.f.db_name
+    app_log_group       = aws_cloudwatch_log_group.app.name
+    user_data_log_group = aws_cloudwatch_log_group.user_data.name
   }))
+
+  # 1-minute EC2 metrics instead of 5-minute: matches the ALB's granularity and lets
+  # CPU scaling react faster. Small extra cost (~$2/instance/month, prorated per hour).
+  monitoring {
+    enabled = true
+  }
 
   # IMDSv2 only: blocks SSRF-style theft of the instance role credentials.
   metadata_options {
@@ -101,14 +109,31 @@ resource "aws_autoscaling_group" "app" {
     }
   }
 
+  # Publish group metrics (InService, Desired, Pending...) to CloudWatch - free.
+  enabled_metrics = [
+    "GroupMinSize",
+    "GroupMaxSize",
+    "GroupDesiredCapacity",
+    "GroupInServiceInstances",
+    "GroupPendingInstances",
+    "GroupTerminatingInstances",
+    "GroupTotalInstances",
+  ]
+
   tag {
     key                 = "Name"
     value               = "${var.project}-app"
     propagate_at_launch = true
   }
 
-  # The NAT route must exist before instances boot, or user data can't install anything.
-  depends_on = [aws_route.private_app_to_nat]
+  # Must exist before instances boot: the NAT route (or user data can't install
+  # anything) and the log groups (or the agent creates them itself, without retention,
+  # and Terraform then fails with "already exists").
+  depends_on = [
+    aws_route.private_app_to_nat,
+    aws_cloudwatch_log_group.app,
+    aws_cloudwatch_log_group.user_data,
+  ]
 }
 
 # Performance: add instances when average CPU stays above 50%, remove them when
