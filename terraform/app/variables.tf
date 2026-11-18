@@ -15,16 +15,18 @@ variable "instance_type" {
 }
 
 variable "asg_min" {
-  type    = number
-  default = 1
+  description = "Two instances, one per AZ - survives losing an instance or an AZ."
+  type        = number
+  default     = 2
 }
 
 variable "asg_desired" {
   type    = number
-  default = 1
+  default = 2
 }
 
 variable "asg_max" {
-  type    = number
-  default = 2
+  description = "Upper limit for CPU-based scaling (keeps cost bounded)."
+  type        = number
+  default     = 4
 }

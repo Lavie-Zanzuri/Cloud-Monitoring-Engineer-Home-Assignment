@@ -8,6 +8,19 @@ data "aws_ssm_parameter" "al2023" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
 }
 
+# IAM is eventually consistent: a brand-new instance profile can take a few seconds
+# to be usable by EC2. Without this pause the first launch can fail with
+# "Authentication Failure" (seen on the first deploy).
+resource "time_sleep" "iam_propagation" {
+  create_duration = "20s"
+  depends_on = [
+    aws_iam_instance_profile.app,
+    aws_iam_role_policy.app,
+    aws_iam_role_policy_attachment.ssm,
+    aws_iam_role_policy_attachment.cloudwatch_agent,
+  ]
+}
+
 resource "aws_launch_template" "app" {
   name_prefix   = "${var.project}-app-"
   image_id      = data.aws_ssm_parameter.al2023.value
@@ -58,6 +71,7 @@ resource "aws_launch_template" "app" {
   }
 
   update_default_version = true
+  depends_on             = [time_sleep.iam_propagation]
 }
 
 resource "aws_autoscaling_group" "app" {
@@ -68,8 +82,11 @@ resource "aws_autoscaling_group" "app" {
   desired_capacity = var.asg_desired
   max_size         = var.asg_max
 
-  health_check_type         = "EC2"
-  health_check_grace_period = 300
+  # ELB health checks: an instance failing /health on the load balancer is
+  # terminated and replaced (self-healing), not just one whose VM crashed.
+  health_check_type         = "ELB"
+  health_check_grace_period = 300   # time for user data to install and start the app
+  target_group_arns         = [aws_lb_target_group.app.arn]
 
   launch_template {
     id      = aws_launch_template.app.id
@@ -92,4 +109,19 @@ resource "aws_autoscaling_group" "app" {
 
   # The NAT route must exist before instances boot, or user data can't install anything.
   depends_on = [aws_route.private_app_to_nat]
+}
+
+# Performance: add instances when average CPU stays above 50%, remove them when
+# it drops (between asg_min and asg_max).
+resource "aws_autoscaling_policy" "cpu" {
+  name                   = "${var.project}-cpu-target"
+  autoscaling_group_name = aws_autoscaling_group.app.name
+  policy_type            = "TargetTrackingScaling"
+
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 50
+  }
 }

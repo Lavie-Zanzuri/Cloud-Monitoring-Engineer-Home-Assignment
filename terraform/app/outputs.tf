@@ -14,3 +14,12 @@ output "nat_public_ip" {
   description = "The address all outbound traffic from the instances comes from."
   value       = aws_eip.nat.public_ip
 }
+
+output "app_url" {
+  description = "Open this in a browser."
+  value       = "http://${aws_lb.app.dns_name}"
+}
+
+output "target_group_arn" {
+  value = aws_lb_target_group.app.arn
+}

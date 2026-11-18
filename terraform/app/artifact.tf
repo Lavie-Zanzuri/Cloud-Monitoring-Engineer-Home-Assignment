@@ -21,6 +21,8 @@ data "archive_file" "app" {
     "detector/__pycache__",
     "detector/checks/__pycache__",
     "web/__pycache__",
+    ".DS_Store",
+    ".gitkeep",
   ]
 }
 
