@@ -497,7 +497,7 @@ resource "aws_cloudwatch_dashboard" "main" {
           metrics = [
             ["AWS/ElastiCache", "CacheHits", "CacheClusterId", local.cache_node, { id = "h", stat = "Sum", color = "#2ca02c" }],
             ["AWS/ElastiCache", "CacheMisses", "CacheClusterId", local.cache_node, { id = "m", stat = "Sum", color = "#ff7f0e" }],
-            [{ expression = "100 * h / (h + m)", label = "Hit rate %", id = "e1", yAxis = "right" }],
+            [{ expression = "100 * FILL(h, 0) / (FILL(h, 0) + FILL(m, 0))", label = "Hit rate %", id = "e1", yAxis = "right" }],
           ]
           yAxis = { left = { min = 0 }, right = { min = 0, max = 100 } }
         }
